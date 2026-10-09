@@ -5,6 +5,7 @@
 Handback Agent helps two people work through a conflict while keeping consequential decisions in human hands. It continues within its role, returns decisions it should not make to the people, and resumes once they choose.
 
 - **Live demo:** https://handback-agent.textign.workers.dev
+- **Demo video (2:52):** https://youtu.be/xaG_NjsKE1M
 - **Model:** NVIDIA **Nemotron 3 Ultra** (`nvidia/Nemotron-3-Ultra-550b-a55b`) on **Nebius Token Factory**
 - **Track:** Best Apps and Agents
 
