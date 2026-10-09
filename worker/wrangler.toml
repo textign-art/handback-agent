@@ -1,0 +1,16 @@
+name = "handback-agent"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+# 화면(public/index.html)은 정적 파일로 내보내고, /api/* 만 Worker가 처리한다
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# 모델을 부르는 요청은 접속자(IP)마다 1분에 20번까지 (공개 링크 비용 보호)
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "2401"
+simple = { limit = 20, period = 60 }
+
+# 모델 키는 비밀값으로만 넣는다: npx wrangler secret put NEBIUS_TOKEN_FACTORY_KEY

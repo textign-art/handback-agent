@@ -1,0 +1,1072 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Handback Agent</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root {
+    --ink: #111418; --sub: #5b6270; --faint: #959aa4;
+    --bg: #ffffff; --soft: #f4f5f7; --soft2: #e9ebef;
+    --blue: #4F6BFF; --blue-soft: #eef1ff;
+    --amber: #c2570c; --amber-soft: #fff4e6;
+    --slate: #4b5160; --slate-soft: #f0f1f3;
+    --pa: #4F6BFF; --pa-soft: #eef1ff; --pb: #0f9d8a; --pb-soft: #e7f6f3;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: Pretendard, -apple-system, "Apple SD Gothic Neo", sans-serif; font-size: 15px; line-height: 1.6; }
+  button { font: inherit; cursor: pointer; border: 0; background: none; color: inherit; }
+  .app { height: 100%; max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; padding: 0 16px; }
+
+  .top { display: flex; align-items: baseline; justify-content: space-between; padding: 14px 0 8px; }
+  .top h1 { font-size: 17px; margin: 0; }
+  .top .reset { color: var(--sub); font-size: 13px; margin-left: 14px; }
+  .top .guide { color: var(--blue); font-size: 13px; font-weight: 600; }
+  /* 진입 화면: 시나리오 고르기 */
+  .entry { position: fixed; inset: 0; z-index: 40; background: var(--bg); overflow-y: auto; display: flex; align-items: center; justify-content: center; padding: 32px 16px; }
+  .entry[hidden] { display: none; }
+  .entry .in { max-width: 1120px; width: 100%; text-align: center; }
+  .entry .eb { font-size: 13px; font-weight: 700; color: var(--blue); }
+  .entry h2 { font-size: 30px; letter-spacing: -0.02em; margin: 6px 0 8px; }
+  .entry .lead { color: var(--sub); font-size: 15.5px; margin: 0 auto; max-width: 640px; }
+  .entry .key { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.45; margin: 14px auto 0; color: var(--ink); }
+  .entry .key .kc { color: var(--blue); }
+  .entry .key .kh { color: var(--blue); }
+  @media (max-width: 760px) { .entry .key { font-size: 19px; } }
+  .entry .who2 { display: flex; justify-content: center; gap: 28px; margin: 18px 0 28px; font-size: 15px; }
+  .entry .who2 b { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: #fff; margin-right: 8px; font-size: 13px; }
+  .entry .who2 .a b { background: var(--pa); } .entry .who2 .b b { background: var(--pb); }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; text-align: left; margin-top: 30px; }
+  @media (max-width: 860px) { .cards { grid-template-columns: 1fr; } }
+  .scard { background: var(--soft); border-radius: 18px; padding: 22px 22px 18px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left; transition: transform .15s, background .15s; }
+  .scard:hover { transform: translateY(-2px); background: var(--soft2); }
+  .scard .no { font-size: 13px; font-weight: 800; color: var(--faint); }
+  .scard h3 { margin: 0; font-size: 20px; letter-spacing: -0.01em; }
+  .scard p { margin: 0; color: var(--sub); font-size: 14.5px; flex: 1; }
+  .scard .oc { margin-left: 6px; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 10px; color: #fff; }
+  .scard.continue .oc { background: var(--blue); } .scard.handback .oc { background: var(--amber); } .scard.security .oc { background: var(--slate); }
+  .scard .ex { font-size: 12.5px; color: var(--faint); }
+  .scard .vs { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; margin: 4px 0 2px; flex-wrap: wrap; }
+  .scard .vs b { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: #fff; font-size: 11px; margin-right: 6px; }
+  .scard .vs .a { color: var(--pa); } .scard .vs .a b { background: var(--pa); }
+  .scard .vs .b { color: var(--pb); } .scard .vs .b b { background: var(--pb); }
+  .scard .vs .x { color: var(--faint); font-weight: 600; font-size: 12px; }
+  .top .scn { font-size: 13px; color: var(--sub); margin-left: 12px; }
+  .top .scn b { color: var(--ink); }
+  .top .scn button { color: var(--blue); font-size: 13px; margin-left: 6px; }
+  /* 가이드 투어 */
+  .tour { position: fixed; inset: 0; z-index: 50; transition: opacity .45s ease; }
+  .tour.out { opacity: 0; pointer-events: none; }
+  .stage.example .groups, .stage.example .extra { pointer-events: none; }
+  .tour .shade { position: absolute; inset: 0; }
+  .tour .spot { position: absolute; border-radius: 16px; box-shadow: 0 0 0 9999px rgba(17, 20, 24, .62); transition: all .35s ease; pointer-events: none; }
+  .tour .spot::after { content: ""; position: absolute; inset: -4px; border-radius: 20px; box-shadow: 0 0 0 3px var(--blue); animation: ring 1.4s infinite; }
+  @keyframes ring { 50% { box-shadow: 0 0 0 6px rgba(79, 107, 255, .35); } }
+  .tour .tip { position: absolute; width: min(470px, calc(100vw - 32px)); background: #fff; border-radius: 16px; padding: 18px 20px 14px; box-shadow: 0 12px 40px rgba(0,0,0,.25); transition: all .35s ease; }
+  .tour .tip .n { font-size: 12px; font-weight: 700; color: var(--blue); }
+  .tour .tip h4 { margin: 2px 0 6px; font-size: 18px; letter-spacing: -0.01em; }
+  .tour .tip p { margin: 0; color: var(--sub); font-size: 14.5px; }
+  .tour .tip .act { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
+  .tour .tip .skip { color: var(--faint); font-size: 13px; }
+  .tour .tip .dots { display: flex; gap: 5px; }
+  .tour .tip .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--soft2); }
+  .tour .tip .dots i.on { background: var(--blue); }
+
+  /* 좌우 배치: 왼쪽 상황판, 오른쪽 대화 (넓은 화면) */
+  .main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .right { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  @media (min-width: 1100px) {
+    .main { display: grid; grid-template-columns: minmax(380px, 40%) 1fr; gap: 22px; }
+    .left { min-height: 0; overflow-y: auto; scrollbar-width: thin; padding-bottom: 14px; }
+    .left .board { min-height: 100%; align-content: start; }
+    .left .bline { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .left .scsum { white-space: normal; font-size: 13.5px; line-height: 1.65; }   /* 좁은 칸에선 강제 줄바꿈 없이 문단으로 */
+    .left .meta { margin-left: 0; }
+    .left .pos { padding: 16px 18px 18px; }
+    .left .plist { gap: 18px; }
+    .left .roles { margin-bottom: 8px; }
+    .left .prow .line { grid-template-columns: 1fr 1fr; row-gap: 2px; }
+    .left .prow .line > .bar, .left .prow .line > .mid { grid-column: 1 / -1; order: 3; }
+    .left .prow .va, .left .prow .vb { font-size: 22px; }
+    .left .prow .iname { text-align: left; margin-bottom: 4px; }
+    .left .prow .iname .ist { display: inline; margin-left: 8px; }
+    .right .turn { grid-template-columns: 1fr; }
+  }
+  .scsum { font-size: 13px; color: var(--sub); line-height: 1.5; white-space: pre-line; word-break: keep-all; }
+  .scsum:empty { display: none; }
+  .scsum b { color: var(--ink); }
+  .bg { max-width: 720px; margin: 10px auto 0; text-align: left; font-size: 16px; line-height: 1.75; color: var(--ink); white-space: pre-line; word-break: keep-all; background: var(--soft); border-radius: 14px; padding: 16px 20px; }
+  /* 상황판 */
+  .board { background: var(--soft); border-radius: 16px; padding: 18px 20px; display: grid; gap: 16px; }
+  .bline { display: flex; align-items: center; gap: 10px 18px; flex-wrap: wrap; }
+  .now { display: flex; align-items: center; gap: 8px; }
+  .now .light { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); }
+  .now.CONTINUE .light { background: var(--blue); } .now.HANDBACK .light { background: var(--amber); }
+  .now.SECURITY_BLOCK .light { background: var(--slate); } .now.RUNNING .light { background: var(--blue); animation: pulse 1s infinite; }
+  .now .title { font-weight: 700; font-size: 14px; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .pipe { display: flex; flex-wrap: wrap; align-items: center; font-size: 12.5px; row-gap: 4px; }
+  .pipe .arrow { color: var(--faint); margin: 0 8px; }
+  .step { display: flex; gap: 5px; align-items: baseline; }
+  .step .name { font-size: 11.5px; color: var(--faint); }
+  .step .val { font-weight: 600; }
+  .step .sub { font-size: 11.5px; color: var(--sub); }
+  .step.running .val { color: var(--blue); }
+  .step.skip .val { color: var(--faint); font-weight: 500; }
+  .step.done.block .val { color: var(--slate); } .step.done.hb .val { color: var(--amber); } .step.done.ok .val { color: var(--blue); }
+  .decs:empty { display: none; }
+  .decs { background: var(--bg); border-radius: 14px; padding: 14px 18px; font-size: 13px; line-height: 1.5; }
+  .decs .dh { font-size: 12px; font-weight: 700; color: var(--amber); margin-bottom: 2px; }
+  .decs .di { color: var(--ink); word-break: keep-all; }
+  .decs .di::before { content: "· "; color: var(--faint); }
+  .prow.agreed { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+  .prow.agreed .iname { text-align: left; margin: 0; }
+  .prow.agreed .agv { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; word-break: keep-all; }
+  .prow.agreed .ck { font-size: 12.5px; font-weight: 700; color: var(--blue); }
+  .prow.agreed .agv b { font-size: 18px; letter-spacing: -0.01em; }
+  .step .val:empty { display: none; }
+  .step.done .val { color: var(--blue); }
+  .left .prow .va, .left .prow .vb { padding: 0; }
+  .roles { margin-bottom: 10px !important; }
+  .meta { margin-left: auto; font-size: 12px; color: var(--sub); }
+  .meta b { color: var(--ink); }
+  .meta .dec { color: var(--amber); font-weight: 600; }
+  .meta .sep { color: var(--faint); }
+
+  .pos { background: var(--bg); border-radius: 14px; padding: 14px 20px 16px; }
+  .plist { display: grid; gap: 14px; }
+  .roles { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--sub); margin-bottom: 4px; }
+  .roles b { font-weight: 800; margin-right: 4px; } .roles .ra b { color: var(--pa); } .roles .rb b { color: var(--pb); }
+  .prow .iname { font-size: 14px; font-weight: 600; color: var(--sub); text-align: center; line-height: 1.2; }
+  .prow .ist { display: block; font-size: 12px; color: var(--faint); font-weight: 500; margin-top: 1px; }
+  .prow .ist.done { color: var(--blue); font-weight: 700; }
+  .prog { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 0; }
+  .prog .pl { font-size: 12px; font-weight: 700; cursor: help; }
+  .prog .pl b { font-size: 16px; color: var(--blue); margin-left: 4px; }
+  .prog .pt { height: 8px; background: var(--soft2); border-radius: 99px; overflow: hidden; }
+  .prog .pf { height: 100%; background: var(--blue); border-radius: 99px; transition: width 1s ease; }
+  .prog .pa { font-size: 12px; color: var(--sub); white-space: nowrap; }
+  .prog .pa b { color: var(--ink); }
+  .prow .line { display: grid; grid-template-columns: 230px 1fr 230px; align-items: center; gap: 12px; }
+  .prow .va, .prow .vb { font-weight: 800; font-size: 26px; letter-spacing: -0.02em; line-height: 1.25; border-radius: 8px; padding: 0 6px; transition: background 1.2s; }
+  .prow .va { color: var(--pa); } .prow .vb { color: var(--pb); text-align: right; }
+  .prow .txt { font-size: 17px !important; font-weight: 700 !important; }
+  .prow .va, .prow .vb { word-break: keep-all; overflow-wrap: anywhere; }
+  .prow .vn { display: block; font-size: 12.5px; font-weight: 600; color: var(--sub); letter-spacing: 0; line-height: 1.3; }
+  .prow .sd { font-size: 14px; font-weight: 800; margin-right: 8px; opacity: .8; }
+  .prow .none { font-size: 15px !important; }
+  .prow .none { color: var(--faint); font-weight: 400; font-size: 13px; }
+
+  /* 막대 위 표시는 이전 위치에서 새 위치로 미끄러지며 살짝 지나쳤다가 멈춘다 */
+  .bar .dot, .bar .dia, .bar .lbl { transition: left .9s cubic-bezier(.34, 1.56, .64, 1); }
+  .bar .dia.swing { animation: swing 1.3s ease-out; }
+  .bar .lbl.swing { animation: swingl 1.3s ease-out; }
+  @keyframes swing { 0% { margin-left: -60px; } 30% { margin-left: 48px; } 55% { margin-left: -24px; } 78% { margin-left: 10px; } 100% { margin-left: 0; } }
+  @keyframes swingl { 0%, 60% { opacity: 0; } 100% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .bar .dot, .bar .dia, .bar .lbl { transition: none; } .bar .dia.swing, .bar .lbl.swing { animation: none; } }
+  .bar { position: relative; height: 54px; border-radius: 8px; transition: background 1.2s; }
+  .bar .track { position: absolute; left: 0; right: 0; top: 18px; height: 3px; background: var(--soft2); }
+  .bar .gap { position: absolute; top: 16px; height: 7px; background: #d9dcef; border-radius: 2px; }
+  .bar .dot { position: absolute; top: 9px; width: 22px; height: 22px; border-radius: 50%; transform: translateX(-50%); box-shadow: 0 0 0 2px #fff; }
+  .bar .dot.a { background: var(--pa); } .bar .dot.b { background: var(--pb); }
+  .bar .dia { position: absolute; top: 11px; width: 17px; height: 17px; background: var(--ink); transform: translateX(-50%) rotate(45deg); box-shadow: 0 0 0 2px #fff; }
+  .bar .lbl { position: absolute; top: 33px; font-size: 13px; font-weight: 600; transform: translateX(-50%); white-space: nowrap; color: var(--sub); }
+  .mid { text-align: center; font-size: 15px; padding: 4px 0; border-radius: 8px; transition: background 1.2s; }
+  .mid .pv { font-weight: 800; font-size: 17px; color: var(--ink); } .mid .pk { font-size: 13px; color: var(--sub); font-weight: 600; margin-right: 8px; }
+  .mid .pk::before { content: "◆"; margin-right: 5px; color: var(--ink); }
+
+  /* 가운데 질문 */
+  .stage { text-align: center; padding: 10px 8px 8px; flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; justify-content: safe center; }
+  .said { display: grid; gap: 4px; max-width: 760px; margin: 0 auto 10px; text-align: left; }
+  .said .ln { display: flex; gap: 10px; align-items: baseline; font-size: 15px; line-height: 1.5; }
+  .said .who { flex: none; min-width: 30px; height: 22px; padding: 0 7px; border-radius: 11px; display: inline-grid; place-items: center; font-size: 11.5px; font-weight: 800; color: #fff; }
+  .said .who.A { background: var(--pa); } .said .who.B { background: var(--pb); } .said .who.AB { background: var(--amber); } .said .who.AI { background: var(--ink); }
+  .said .tx { color: var(--ink); } .said .ln.ai .tx { color: var(--sub); }
+  .said .ln.ai .tx.wait { color: var(--faint); }
+  .stage .kind { font-size: 12.5px; font-weight: 700; color: var(--blue); }
+  .stage.HANDBACK .kind { color: var(--amber); } .stage.SECURITY_BLOCK .kind { color: var(--slate); }
+  .stage .q { white-space: pre-line; word-break: keep-all; text-wrap: balance; font-size: 23px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.4; margin: 4px auto 4px; max-width: 860px; }
+  .stage .h { font-size: 13.5px; color: var(--sub); max-width: 760px; margin: 0 auto; }
+  .stage.busy .q, .stage.busy .opts { opacity: .35; }
+  .stage .wait { font-size: 13px; color: var(--blue); height: 18px; }
+  .stage .opts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
+  .ob { display: inline-flex; align-items: center; gap: 8px; border-radius: 14px; padding: 15px 26px; font-size: 17px; font-weight: 700; background: var(--soft); max-width: 420px; text-align: left; line-height: 1.35; }
+  .ob:hover:not(:disabled) { filter: brightness(.97); }
+  .ob:disabled { cursor: default; }
+  .ob .sp { flex: none; font-size: 11px; font-weight: 800; color: #fff; border-radius: 6px; padding: 1px 6px; }
+  .ob .sp.A { background: var(--pa); } .ob .sp.B { background: var(--pb); } .ob .sp.AB { background: var(--amber); }
+  .ob.A { background: var(--pa-soft); } .ob.B { background: var(--pb-soft); } .ob.AB { background: var(--amber-soft); }
+  .ob .more { font-weight: 400; color: var(--sub); font-size: 12px; }
+  .ob.free { background: transparent; box-shadow: inset 0 0 0 1px var(--soft2); color: var(--sub); }
+  .groups { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin: 14px auto 0; width: fit-content; max-width: 100%; }
+  .grp { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .groups:has(.grp.AB) { align-items: center; }
+  .grp .gh { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 15px; font-weight: 800; color: #fff; }
+  .grp.A .gh { background: var(--pa); } .grp.B .gh { background: var(--pb); } .grp.AB .gh { background: var(--amber); width: auto; padding: 0 9px; border-radius: 13px; }
+  .grp.out .row { display: contents; }
+  .grp:not(.out) .row { display: inline-flex; border-radius: 14px; overflow: hidden; }
+  .grp.A:not(.out) .row { background: var(--pa-soft); } .grp.B:not(.out) .row { background: var(--pb-soft); } .grp.AB:not(.out) .row { background: var(--amber-soft); }
+  .grp:not(.out) .row .ob { background: transparent; border-radius: 0; position: relative; }
+  .grp:not(.out) .row .ob + .ob::before { content: ""; position: absolute; left: 0; top: 22%; bottom: 22%; width: 1.5px; background: rgba(17, 20, 24, .14); }
+  .grp.A:not(.out) .row .ob:hover:not(:disabled) { background: #dfe5ff; } .grp.B:not(.out) .row .ob:hover:not(:disabled) { background: #d3efe9; }
+  .grp.AB:not(.out) .row .ob:hover:not(:disabled) { background: #ffe7c9; }
+  .grp .fl { font-size: 14px; color: var(--sub); text-decoration: underline; padding: 0 4px; }
+  .grp .fl:disabled { opacity: .4; }
+  .stage.busy .groups { opacity: .35; }
+  .stage .extra { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; margin-top: 14px; }
+  .stage .extra .xl { font-size: 12.5px; color: var(--faint); margin-right: 4px; }
+  .stage .extra .xb { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--sub); background: var(--bg); box-shadow: inset 0 0 0 1px var(--soft2); border-radius: 999px; padding: 5px 12px 5px 6px; text-decoration: none; margin: 0; }
+  .stage .extra .xb:hover:not(:disabled) { color: var(--ink); background: var(--soft); }
+  .stage .extra .sp { font-size: 10.5px; font-weight: 800; color: #fff; border-radius: 999px; padding: 1px 6px; }
+  .stage .extra .sp.A { background: var(--pa); } .stage .extra .sp.B { background: var(--pb); }
+
+  @media (max-width: 760px) { .groups { grid-template-columns: 1fr; } }
+  .groups.rows { align-items: stretch; }
+  .grp.out { display: grid; grid-template-columns: 170px 1fr; align-items: center; gap: 12px; }
+  .grp.out .gt { font-size: 13px; font-weight: 700; text-align: right; }
+  .grp.out.continue .gt { color: var(--blue); } .grp.out.handback .gt { color: var(--amber); } .grp.out.security .gt { color: var(--slate); }
+  .grp.out .row { display: flex; flex-wrap: wrap; gap: 12px; }
+  .grp.out .ob { background: var(--soft); }
+  .ob .sp { flex: none; font-size: 11px; font-weight: 800; color: #fff; border-radius: 6px; padding: 1px 6px; }
+  .ob .sp.A { background: var(--pa); } .ob .sp.B { background: var(--pb); }
+  @media (max-width: 760px) { .grp.out { grid-template-columns: 1fr; } .grp.out .gt { text-align: left; } }
+  .stage .h, .entry .lead, .scard p, .tour .tip p { white-space: pre-line; }
+  body { word-break: keep-all; overflow-wrap: break-word; }
+  .stage .h, .card .t, .entry .key { text-wrap: balance; }
+  .grp.A:not(.out) .row .ob.sel { background: var(--pa); color: #fff; } .grp.B:not(.out) .row .ob.sel { background: var(--pb); color: #fff; }
+  .grp:not(.out) .row .ob.sel::after { content: " ✓"; }
+  .grp .din { flex-basis: 100%; font: inherit; font-size: 15px; border: 0; border-radius: 10px; padding: 9px 12px; background: var(--soft); outline: none; margin-left: 46px; max-width: 420px; }
+  .grp .din:focus { box-shadow: inset 0 0 0 2px var(--blue); }
+  .dualbar { margin-top: 10px; font-size: 13px; color: var(--sub); display: flex; gap: 12px; justify-content: center; align-items: center; }
+  .stage .foot { font-size: 12px; color: var(--faint); margin-top: 8px; }
+  .stage .foot button { color: var(--blue); text-decoration: underline; font-size: 13px; font-weight: 600; }
+
+  /* 대화 기록 */
+  .chat.open { height: 55vh; padding: 4px 2px 10px !important; }
+  .logh .last { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 16px; color: var(--sub); }
+  .logh .last b { color: var(--ink); font-weight: 600; }
+  .logh button { font-size: 12px; color: var(--sub); text-decoration: underline; }
+  .logh { display: flex; justify-content: space-between; font-size: 12px; color: var(--faint); padding: 8px 2px 4px; border-top: 1px solid var(--soft2); }
+  .chat { flex: none; height: 0; padding-top: 0 !important; padding-bottom: 0 !important; transition: height .3s; overflow-y: auto; padding: 4px 2px 10px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+  .turn { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 380px); gap: 12px; align-items: start; }
+  @media (max-width: 1060px) { .turn { grid-template-columns: 1fr; } }
+  .turn .left { display: flex; flex-direction: column; gap: 6px; }
+  .msg { max-width: 80%; border-radius: 14px; padding: 7px 12px; white-space: pre-wrap; }
+  .msg .tag { display: block; font-size: 11px; font-weight: 700; }
+  .msg.A { align-self: flex-start; background: var(--pa-soft); } .msg.A .tag { color: var(--pa); }
+  .msg.B { align-self: flex-end; background: var(--pb-soft); } .msg.B .tag { color: var(--pb); }
+  .msg.AB { align-self: center; background: var(--amber-soft); } .msg.AB .tag { color: var(--amber); }
+  .msg.AI { align-self: center; background: var(--blue-soft); color: var(--sub); } .msg.AI .tag { color: var(--blue); }
+  .card { border-radius: 12px; padding: 10px 14px; background: var(--soft); }
+  .card.HANDBACK { background: var(--amber-soft); } .card.SECURITY_BLOCK { background: var(--slate-soft); }
+  .card .kind { font-size: 11.5px; font-weight: 700; color: var(--blue); }
+  .card.HANDBACK .kind { color: var(--amber); } .card.SECURITY_BLOCK .kind { color: var(--slate); }
+  .card .t { font-weight: 600; }
+  .card .s { font-size: 12.5px; color: var(--sub); }
+  .card.pending { color: var(--faint); }
+  .err { background: #fff1f0; color: #9f1d1d; border-radius: 12px; padding: 8px 12px; }
+  .intro { color: var(--faint); text-align: center; font-size: 13px; margin: auto 0; }
+
+  .trace { background: #fafbfc; border-radius: 12px; padding: 8px 12px; font-size: 12px; line-height: 1.5; box-shadow: inset 0 0 0 1px var(--soft2); }
+  .trace .th { font-weight: 700; font-size: 12.5px; display: flex; justify-content: space-between; }
+  .trace .th span { font-weight: 500; color: var(--faint); }
+  .sum { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; }
+  .sum li { display: flex; gap: 6px; align-items: baseline; }
+  .sum .ic { width: 14px; text-align: center; color: var(--faint); }
+  .sum .lb { width: 30px; color: var(--sub); font-size: 11.5px; }
+  .sum .v { color: var(--faint); }
+  .sum .v.ok { color: var(--ink); } .sum .v.hb { color: var(--amber); font-weight: 600; }
+  .sum .v.block { color: var(--slate); font-weight: 600; } .sum .v.cont { color: var(--blue); font-weight: 600; } .sum .v.run { color: var(--blue); }
+  .quote { margin-top: 6px; padding: 6px 8px; background: var(--bg); border-radius: 8px; color: var(--sub); }
+  .quote b { display: block; font-size: 10.5px; color: var(--faint); }
+  .trace details { margin-top: 4px; } .trace summary { cursor: pointer; color: var(--sub); font-size: 11.5px; }
+  .trace .tr { padding: 5px 0; border-top: 1px solid var(--soft2); }
+  .trace .tk { font-size: 10.5px; color: var(--faint); font-weight: 600; display: flex; justify-content: space-between; }
+  .trace .tag { font-weight: 700; margin-right: 6px; } .trace .tag.ok { color: var(--blue); } .trace .tag.hb { color: var(--amber); } .trace .tag.block { color: var(--slate); }
+  .trace .en { display: block; color: var(--sub); } .trace .en b { color: var(--faint); font-size: 10px; margin-right: 4px; }
+
+  .secbar { display: flex; justify-content: flex-end; align-items: center; gap: 6px; font-size: 12px; color: var(--faint); }
+  .secbar:empty { display: none; }
+  .secbar button { font-size: 12px; color: var(--slate); background: var(--slate-soft); border-radius: 999px; padding: 3px 10px; }
+  .secbar button:hover:not(:disabled) { background: var(--soft2); }
+  .secbar button:disabled { opacity: .4; cursor: default; }
+  /* 입력 */
+  .composer { display: flex; gap: 8px; align-items: center; padding: 8px 0 14px; flex-wrap: wrap; }
+  .limit { flex-basis: 100%; font-size: 12.5px; color: #d64545; padding-left: 4px; }
+  .who { flex: none; display: inline-flex; background: var(--soft); border-radius: 999px; padding: 3px; }
+  .who button { border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 700; color: var(--sub); }
+  .who button.on.A { background: var(--pa); color: #fff; } .who button.on.B { background: var(--pb); color: #fff; }
+  .who.decide button { display: none; } .who.decide::before { content: "A·B 결정"; padding: 6px 12px; font-size: 13px; font-weight: 700; color: var(--amber); }
+  .inputbox { flex: 1; display: flex; gap: 8px; align-items: center; background: var(--soft); border-radius: 14px; padding: 6px 6px 6px 14px; }
+  .inputbox textarea { flex: 1; border: 0; background: transparent; font: inherit; resize: none; height: 24px; max-height: 120px; outline: none; overflow: hidden; }
+  .primary { background: var(--blue); color: #fff; border-radius: 10px; padding: 8px 16px; font-weight: 600; }
+  .primary:disabled { opacity: .35; cursor: default; }
+  @media (max-width: 760px) {
+    .prow .line { grid-template-columns: 80px 1fr 80px; }
+    .stage .q { font-size: 19px; }
+    .meta { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="entry" id="entry"></div>
+<div class="app">
+  <div class="top">
+    <div><h1 style="display:inline">Handback Agent</h1><span class="scn" id="scn"></span></div>
+    <div><button class="guide" id="guideBtn">가이드</button><button class="reset" id="reset">처음 상태로</button></div>
+  </div>
+
+  <div class="main">
+  <aside class="left">
+  <section class="board" aria-label="상황판">
+    <div class="bline">
+      <div class="now" id="now"><span class="light"></span><span class="title">대기 중</span></div>
+      <div class="pipe" id="pipe"></div>
+    </div>
+    <div class="prog" id="prog"></div>
+    <div class="scsum" id="scsum"></div>
+    <div class="pos"><div class="roles" id="roles"></div><div id="pos" class="plist"></div></div>
+    <div class="decs" id="meta"></div>
+  </section>
+  </aside>
+
+  <div class="right">
+  <section class="stage" id="stage" aria-live="polite"></section>
+
+  <div class="logh"><button id="logToggle">대화 기록 펼치기</button><div class="secbar" id="secbar"></div></div>
+  <div class="chat" id="chat"><div class="intro" id="intro">아직 대화가 없습니다.</div></div>
+
+  <div class="composer">
+    <div class="who" id="who"><button class="A on" data-s="A">A</button><button class="B" data-s="B">B</button></div>
+    <div class="inputbox">
+      <textarea id="input" rows="1" placeholder="A의 입장에서 직접 입력"></textarea>
+      <button class="primary" id="send">보내기</button>
+    </div>
+    <div class="limit" id="limit" hidden></div>
+  </div>
+  </div>
+  </div>
+</div>
+
+<script>
+const HB_TEXT = {
+  HB_ROLE_TRANSITION: "이 요청을 따르면 AI가 판정자나 최종 결정자가 됩니다.\n그래서 AI는 이 결정을 사람에게 넘깁니다.",
+  HB_THIRD_PARTY: "이 결정은 동의하지 않은 제3자의 권리를 바꿉니다.\n그래서 AI는 이 결정을 사람에게 넘깁니다.",
+  HB_NORMATIVE_AUTHORITY: "AI는 두 사람이 합의하지 않은 가치 기준을 대신 정할 수 없습니다.\n그래서 AI는 이 결정을 사람에게 넘깁니다.",
+  HB_SYSTEM_CEILING: "이 요청에는 AI가 할 수 없는 행동이 필요합니다.\n그래서 AI는 이 결정을 사람에게 넘깁니다.",
+  HB_SCOPE_MUTATION: "이 요청이 지금 맡은 중재 범위에 들어가는지 사람이 먼저 정해야 합니다.",
+  HB_CONSENT_REQUIRED: "AI가 중재를 계속하려면 당사자의 동의가 필요한데, 지금은 그 동의가 없습니다.",
+  HB_MEDIATION_EXHAUSTED: "AI가 더 시도할 수 있는 중재 방법이 남아 있지 않습니다.",
+};
+const HB_SHORT = {
+  HB_ROLE_TRANSITION: "판정자 역할 요구", HB_THIRD_PARTY: "제3자 권리", HB_NORMATIVE_AUTHORITY: "가치 기준 결정",
+  HB_SYSTEM_CEILING: "AI 권한 밖", HB_SCOPE_MUTATION: "범위 결정 필요", HB_CONSENT_REQUIRED: "동의 필요", HB_MEDIATION_EXHAUSTED: "중재 소진",
+};
+const OK_TEXT = {
+  OK_INFO_GATHERING: "부족한 정보 확인", OK_DISPUTE_CLARIFICATION: "상반된 주장 정리", OK_NORM_FORMATION: "기준 후보 만들기",
+  OK_NONBINDING_PROPOSAL: "참고용 제안", OK_SOURCE_INTERPRETATION: "승인 자료로 쟁점 좁히기", OK_MEANING_CLARIFICATION: "의미 확인",
+  OK_STATE_REVISION: "잘못된 전제 바로잡기", OK_MEDIATION_ACTIVE: "감정과 요구 나눠 이어 가기", OK_SCOPE_VALID: "범위 안 쟁점 다루기",
+  OK_PROCEDURAL_REMEDY: "재검토·회부 절차 설계",
+};
+const SEC_TEXT = {
+  SECRET_REQUEST: "이 요청은 비밀값이나 내부 지침을 요구합니다.",
+  DATA_EXFILTRATION: "이 요청은 다른 사람의 정보나 기록을 밖으로 내보내려 합니다.",
+  UNAUTHORIZED_TOOL: "이 요청은 허용되지 않은 파일·터미널·네트워크 작업을 요구합니다.",
+  ROLE_BYPASS: "이 요청은 역할을 내세워 보안 검사를 건너뛰려 합니다.",
+  PROMPT_INJECTION: "이 요청은 AI의 판단 방식을 무시하거나 결과를 강제하려 합니다.",
+  UNTRUSTED_INSTRUCTION: "이 요청은 문서나 검색 결과 속 지시를 실행하라고 합니다.",
+};
+const SEC_SHORT = {
+  SECRET_REQUEST: "비밀 요구", DATA_EXFILTRATION: "정보 반출", UNAUTHORIZED_TOOL: "허용 안 된 작업",
+  ROLE_BYPASS: "권한 사칭", PROMPT_INJECTION: "판정 조작", UNTRUSTED_INSTRUCTION: "외부 지시 실행",
+};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let busy = false, row = null, presets = [], speaker = "A", turnSeconds = 0;
+let pendingHandback = null, lastSaid = "";
+// 대화 상태: Cloudflare Worker는 서버에 상태를 두지 않으므로 브라우저가 들고 다니며 요청마다 보낸다(로컬 파이썬 서버는 무시)
+let sess = null;
+const keepSession = (d) => { if (d && d.session) sess = d.session; };   // 결정 대기 중인 Handback turn_id
+
+/* ---------- 상황판: 단계 ---------- */
+const STEPS = [
+  { key: "security_gate", name: "보안" }, { key: "csm", name: "판단" },
+  { key: "finish", name: "정리" }, { key: "position_tracker", name: "기록" },
+];
+let steps = {}, ticker = null;
+function resetSteps() {
+  steps = Object.fromEntries(STEPS.map((s) => [s.key, { state: "idle" }]));
+  renderPipe();
+}
+function stepView(key) {
+  const s = steps[key];
+  if (s.state === "idle") return { cls: "", val: "", tip: "" };
+  if (s.state === "skip") return { cls: "skip", val: "–", tip: "건너뜀" };
+  if (s.state === "running") return { cls: "running", val: "…", tip: "진행 중" };
+  const time = s.seconds === 0 ? "저장된 응답" : `${s.seconds}초`;
+  if (key === "security_gate") return s.status === "PASS" ? { cls: "done ok", val: "✓", tip: `통과 · ${time}` } : { cls: "done block", val: "차단", tip: `${SEC_SHORT[s.reason] || ""} · ${time}` };
+  if (key === "csm") return s.status === "CONTINUE" ? { cls: "done ok", val: "✓", tip: `${OK_TEXT[s.reason] || ""} · ${time}` } : { cls: "done hb", val: "사람에게", tip: `${HB_SHORT[s.reason] || ""} · ${time}` };
+  if (key === "position_tracker") return { cls: "done", val: s.failed ? "유지" : "✓", tip: `${s.failed ? "실패 · 표 유지" : s.changed ? `${s.changed}칸 바뀜` : "변화 없음"} · ${time}` };
+  return { cls: "done", val: "✓", tip: `${s.label || "완료"} · ${time}` };
+}
+function renderPipe() {
+  $("pipe").innerHTML = STEPS.map(({ key, name }) => {
+    const v = stepView(key);
+    return `<div class="step ${v.cls}" title="${esc(v.tip)}"><span class="name">${name}</span><span class="val">${esc(v.val)}</span></div>`;
+  }).join('<span class="arrow">→</span>');
+}
+function setNow(kind, title) {
+  $("now").className = `now ${kind}`;
+  $("now").innerHTML = `<span class="light"></span><span class="title">${esc(title)}</span>`;
+}
+function onStage(e) {
+  const key = e.stage === "continue_view" || e.stage === "handback_brief" ? "finish" : e.stage;
+  if (e.state === "running") {
+    steps[key] = { state: "running", started: performance.now() };
+    const label = { security_gate: "보안 검사 중…", csm: "AI가 판단하는 중…", finish: "질문 정리 중…", position_tracker: "입장 기록 중…" }[key];
+    const w = $("stage").querySelector(".wait"); if (w) w.textContent = label;
+    if (key !== "position_tracker") setNow("RUNNING", label);
+  } else {
+    steps[key] = { state: "done", seconds: e.seconds, status: e.status, reason: e.reason, changed: e.changed, failed: e.failed,
+                   label: e.stage === "handback_brief" ? "결정 요청" : e.stage === "continue_view" ? "다음 질문" : null };
+    if (key === "security_gate" && e.status !== "PASS") ["csm", "finish", "position_tracker"].forEach((k) => steps[k] = { state: "skip" });
+  }
+  renderPipe();
+}
+
+/* ---------- 상황판: 입장표 ---------- */
+// 쟁점 값의 첫 숫자(%, 만원, 시 등). 숫자가 없으면 막대 대신 글자로 보여준다
+// 괄호 앞 "지금 입장"의 첫 숫자. "10시 30분"은 10.5로 읽는다. 숫자가 없으면 null
+const pct = (v) => {
+  const main = String(v || "").split("(")[0];
+  const hm = /(\d+)\s*시\s*(\d+)\s*분/.exec(main);
+  if (hm) return parseInt(hm[1], 10) + parseInt(hm[2], 10) / 60;
+  const m = /(\d+(?:\.\d+)?)/.exec(main); return m ? parseFloat(m[1]) : null;
+};
+function renderProgress(pr) {
+  if (!pr) return;
+  const tip = "A와 B의 입장 차이가 처음보다 얼마나 줄었는지 보여 줍니다. 합의했다는 뜻은 아니며, 합의 여부는 오른쪽 '합의 n/m 쟁점'으로 봅니다. "
+    + "숫자 쟁점은 처음 차이 대비 줄어든 비율(합의 전 최대 95%), 그 밖의 쟁점은 입장을 말했는지·합의했는지 단계로 계산해 평균 냅니다. 시연용 표시이며 중재 효과의 근거가 아닙니다.";
+  $("prog").innerHTML = `<div class="pl" title="${esc(tip)}">입장 차이 좁혀짐<b>${pr.overall}%</b></div>
+    <div class="pt"><div class="pf" style="width:${pr.overall}%"></div></div>
+    <div class="pa">합의 <b>${pr.agreed}/${pr.total}</b> 쟁점</div>`;
+  progressByIssue = Object.fromEntries((pr.issues || []).map((i) => [i.issue, i]));
+}
+let progressByIssue = {}, lastRows = [];
+// 쟁점 값의 단위로 차이 단위를 정한다: % → %p, 시 → 시간, 그 밖은 같은 단위
+function gapUnit(issue) {
+  const row = lastRows.find((r) => r.issue === issue) || {};
+  const m = /\d+(?:\.\d+)?\s*([^\s\d(]*)/.exec(row.A || row.B || "");
+  const u = m ? m[1] : "";
+  return u === "%" ? "%p" : u === "시" ? "시간" : u;
+}
+function issueNote(issue) {
+  const i = progressByIssue[issue];
+  if (!i) return "";
+  if (i.status === "합의") return `<span class="ist done">합의했어요</span>`;
+  if (i.gap !== undefined) {
+    const u = gapUnit(i.issue);
+    const base = +i.base.toFixed(1), gap = +i.gap.toFixed(1);
+    // 차이가 처음과 같으면 따로 적지 않고, 줄었을 때만 보여 준다
+    return gap < base ? `<span class="ist">A·B 차이 ${base}${u} → ${gap}${u}으로 줄었어요</span>` : "";
+  }
+  return `<span class="ist">${esc(STATUS_TEXT[i.status] || i.status)}</span>`;
+}
+// 쟁점 상태의 화면 표시(내부 값은 그대로 두고 쉬운 말로만 보여 준다)
+const STATUS_TEXT = {
+  "미제시": "아직 아무도 입장을 말하지 않았어요",
+  "한쪽 제시": "한 사람만 입장을 말했어요",
+  "입장 차이": "두 사람 입장이 달라요",
+};
+// "밤 10시 수락 (주말은 11시)" → 값 "밤 10시", 메모 "주말은 11시"
+function splitVal(v) {
+  const m = /^(.*?)\s*\((.*?)\)?\s*$/.exec(v || "");
+  const main = (m && m[1] ? m[1] : v || "").replace(/\s*(수락|수용|동의)\s*$/, "").trim();
+  return { main: main || v, note: m && m[1] ? m[2] : "" };
+}
+function renderPositions(rows, changed = [], progress = null) {
+  lastRows = rows;
+  renderProgress(progress);
+  const hit = () => "";
+  // 값은 "지금 입장"을 크게, 괄호 속 반응은 아랫줄에 작게 나눠 보여 준다
+  const val = (v, cls, issue, side) => {
+    if (!v) return `<div class="${cls}"><span class="sd">${side}</span><span class="none">아직 없음</span></div>`;
+    const { main, note } = splitVal(v);
+    const small = pct(main) === null || main.length > 9 ? " txt" : "";
+    return `<div class="${cls}${small}"${note ? ` title="${esc(note)}"` : ""}><span class="sd">${side}</span>${esc(main)}</div>`;
+  };
+  const nextMarks = {};
+  $("pos").innerHTML = rows.map((p) => {
+    if ((progressByIssue[p.issue] || {}).status === "합의" || p.status === "합의") {
+      const v = p.proposal || splitVal(p.A || p.B).main;
+      return `<div class="prow agreed"><div class="iname">${esc(p.issue)}</div><div class="agv"><span class="ck">✓ 합의</span><b>${esc(v)}</b></div></div>`;
+    }
+    const a = pct(p.A), b = pct(p.B), m = pct(p.proposal);
+    let mid;
+    // 막대는 처음부터 A·B 값이 모두 숫자인 쟁점만 그린다(글자 쟁점 속 숫자는 막대로 읽지 않는다)
+    if (axes[p.issue] || (a !== null && b !== null)) {
+      const nums = [a, b, m].filter((x) => x !== null);
+      // 눈금은 쟁점마다 처음 값으로 고정한다(값이 바뀐 만큼 점이 실제로 움직이도록). 범위를 벗어나면 넓힌다
+      const ax = axes[p.issue] || (() => {
+        const l = Math.min(...nums), h = Math.max(...nums), pad = Math.max(3, (h - l) * 0.25);
+        return (axes[p.issue] = { lo: Math.max(0, l - pad), hi: h + pad, flip: a !== null && b !== null && a > b });
+      })();
+      ax.lo = Math.min(ax.lo, ...nums); ax.hi = Math.max(ax.hi, ...nums);
+      const { lo, hi, flip } = ax;   // flip: A 칸이 왼쪽이므로 A 쪽 값이 왼쪽에 오게
+      const x = (v) => `${((flip ? hi - v : v - lo) / (hi - lo || 1)) * 100}%`;
+      const gap = a !== null && b !== null ? `<div class="gap" style="left:${x(flip ? a : Math.min(a, b))};width:${(Math.abs(a - b) / (hi - lo || 1)) * 100}%"></div>` : "";
+      const prev = prevMarks[p.issue] || {};
+      const mark = (key, v, cls, inner = "") => {
+        const to = x(v), from = prev[key] ?? to;
+        const swing = key !== "a" && key !== "b" && prev.m === undefined && changed.length ? " swing" : "";
+        return `<div class="${cls}${swing}" style="left:${from}" data-to="${to}">${inner}</div>`;
+      };
+      nextMarks[p.issue] = { a: a !== null ? x(a) : undefined, b: b !== null ? x(b) : undefined, m: m !== null ? x(m) : undefined };
+      mid = `<div class="bar"><div class="track"></div>${gap}
+        ${a !== null ? mark("a", a, "dot a") : ""}${b !== null ? mark("b", b, "dot b") : ""}
+        ${m !== null ? mark("m", m, "dia") + mark("m", m, "lbl", `AI 제안 ${esc(p.proposal)}`) : ""}</div>`;
+    } else {
+      mid = `<div class="mid${hit(p.issue, "proposal")}">${p.proposal ? `<span class="pk">AI 제안</span><span class="pv">${esc(p.proposal)}</span>` : '<span class="none">AI 제안 없음</span>'}</div>`;
+    }
+    return `<div class="prow"><div class="iname">${esc(p.issue)}${issueNote(p.issue)}</div><div class="line">${val(p.A, "va", p.issue, "A")}${mid}${val(p.B, "vb", p.issue, "B")}</div></div>`;
+  }).join("");
+  settleMarks(nextMarks);
+}
+let roles = {};
+function renderRoles(r) {
+  if (r) roles = r;
+  $("roles").innerHTML = `<span class="ra"><b>A</b>${esc(roles.A || "")}</span><span class="rb"><b>B</b>${esc(roles.B || "")}</span>`;
+  document.querySelectorAll("#who button").forEach((b) => b.title = roles[b.dataset.s] || "");
+}
+let prevMarks = {}, axes = {};
+function settleMarks(next) {
+  void $("pos").offsetWidth;   // 이전 위치를 먼저 그린 뒤 새 위치로 옮겨야 미끄러지는 효과가 난다
+  document.querySelectorAll("#pos [data-to]").forEach((el) => { el.style.left = el.dataset.to; });
+  prevMarks = next;
+}
+function renderMeta(st, history) {
+  const decisions = st.agreed_facts.filter((f) => f.startsWith("사람의 결정")).map((d) => d.split("→").pop().trim());
+  $("meta").innerHTML = decisions.length
+    ? `<div class="dh">사람이 정한 것</div>${decisions.map((d) => `<div class="di">${esc(d)}</div>`).join("")}` : "";
+}
+
+/* ---------- 가운데 질문 + 선택 버튼 ---------- */
+let stageOptions = [], lastQuestion = null;   // 보안 차단 뒤 돌아갈 직전 질문
+// 질문에 문장이 여러 개면 문장마다 새 줄에서 시작한다
+const splitSentences = (s) => String(s ?? "").replace(/([?？.!])\s+(?=\S)/g, "$1\n");
+let stageArgs = null, exchange = null;
+// 방금 오간 대사: 사람 대사는 보낸 문장 그대로, AI 대사는 이미 만든 화면 문장이나 고정 문구만 쓴다(새로 생성하지 않음)
+function saidHtml(s) {
+  if (!s) return "";
+  const tag = { A: "A", B: "B", AB: "A·B", AI: "AI" };
+  const line = (w, x) => `<div class="ln"><span class="who ${w}">${tag[w] || w}</span><span class="tx">“${esc(x)}”</span></div>`;
+  const human = s.who === "AI" ? "" : s.lines ? s.lines.map((l) => line(l.who, l.text)).join("") : line(s.who, s.text);
+  const ai = `<div class="ln ai"><span class="who AI">AI</span><span class="tx${s.ai ? "" : " wait"}">${esc(s.ai || "…")}</span></div>`;
+  return `<div class="said">${human}${ai}</div>`;
+}
+function renderStage(args) {
+  stageArgs = args;
+  const { kind = "", label, question, hint = "", options = [], foot = "", extra = [], said = null } = args;
+  stageOptions = [...options, ...extra];
+  const btn = (o) => { const i = stageOptions.indexOf(o);
+    return `<button class="ob" data-i="${i}" title="${esc(o.text || "")}">${esc(o.label)}</button>`; };
+  const byRow = options.some((o) => o.row);
+  const rowBtn = (o) => `<button class="ob ${o.sp}" data-i="${stageOptions.indexOf(o)}" title="${esc(o.text || "")}"><span class="sp ${o.sp}">${o.sp}</span>${esc(o.label)}</button>`;
+  const rowKeys = [...new Set(options.map((o) => o.row).filter(Boolean))];
+  const sides = byRow ? [] : ["A", "B", "AB"].filter((sp) => options.some((o) => o.sp === sp));
+  const head = { A: "A", B: "B", AB: "A·B 결정" };
+  // 둘 다에게 묻는 질문: 바로 보내지 않고 A·B가 모두 고른 뒤 함께 보낸다
+  const dual = !byRow && sides.includes("A") && sides.includes("B") && kind !== "example";
+  dualPicks = dual ? {} : null;
+  const rowGroups = rowKeys.map((k) => `<div class="grp out ${k}"><div class="gt">${esc(outcomes[k] || k)}</div><div class="row">${options.filter((o) => o.row === k).map(rowBtn).join("")}</div></div>`).join("");
+  const groups = rowGroups + sides.map((sp) => {
+    const own = options.filter((o) => o.sp === sp && !o.free);
+    const free = options.find((o) => o.sp === sp && o.free);
+    return `<div class="grp ${sp}" data-sp="${sp}"><div class="gh">${head[sp]}</div><div class="row">${own.map(btn).join("")}</div>
+      ${free ? `<button class="fl" data-i="${stageOptions.indexOf(free)}">${esc(free.label)}</button>` : ""}
+      <input class="din" data-sp="${sp}" hidden></div>`;
+  }).join("");
+  $("stage").className = `stage ${kind}`;
+  $("stage").innerHTML = `${saidHtml(said)}<div class="kind">${esc(label)}</div>
+    <div class="q">${esc(splitSentences(question))}</div>
+    ${hint ? `<div class="h">${esc(hint)}</div>` : ""}
+    <div class="wait"></div>
+    <div class="groups${byRow ? " rows" : ""}">${groups}</div>
+    ${dual ? `<div class="dualbar"><span id="dualMsg">A와 B가 모두 고르면 두 답을 함께 보냅니다.</span><button class="primary" id="dualSend" hidden>두 답 보내기</button></div>` : ""}
+    ${extra.length ? `<div class="extra"><span class="xl">다른 상황 넣어 보기</span>${extra.map((o) => `<button class="xb" data-i="${stageOptions.indexOf(o)}" title="${esc(o.text || "")}"><span class="sp ${o.sp}">${o.sp}</span>${esc(o.label)}</button>`).join("")}</div>` : ""}
+    ${foot ? `<div class="foot">${foot}</div>` : ""}`;
+  $("stage").querySelectorAll("[data-i]").forEach((b) => b.onclick = () => pick(stageOptions[+b.dataset.i], b));
+  $("stage").querySelectorAll(".din").forEach((el) => el.oninput = dualCheck);
+  $("stage").querySelector("#dualSend")?.addEventListener("click", dualSend);
+  $("stage").querySelector("#showPresets")?.addEventListener("click", showStarters);
+  $("stage").querySelector("#backQ")?.addEventListener("click", () => {
+    if (!lastQuestion || busy) return;
+    pendingHandback = lastQuestion.pending;
+    if (lastQuestion.steps) { steps = structuredClone(lastQuestion.steps); renderPipe(); }
+    renderStage(lastQuestion.args);
+    setNow(pendingHandback ? "HANDBACK" : "CONTINUE", pendingHandback ? "사람의 결정 대기" : "중재 진행 중");
+    setWhoMode();
+  });
+}
+function stageBusy(on) {
+  $("stage").classList.toggle("busy", on);
+  $("stage").querySelectorAll("[data-i]").forEach((b) => b.disabled = on);
+  if (!on) { const w = $("stage").querySelector(".wait"); if (w) w.textContent = ""; }
+}
+let scenarios = [], scenario = null, outcomes = {};
+function showExample() {
+  // 가이드용 예시 화면: 눌러도 동작하지 않는다
+  const ex = (sp) => [{ sp, label: "수락", text: "", example: true }, { sp, label: "다른 제안", text: "", example: true }];
+  renderStage({ kind: "example", label: "예시 화면", question: "A와 B는 AI가 낸 중간안을 받아들이시겠습니까?",
+    hint: "가이드를 마치면 AI가 실제로 상황 분석을 시작합니다.", options: [...ex("A"), ...ex("B")], extra: injectOptions() });
+}
+function showBackground() {
+  return new Promise((resolve) => {
+    renderStage({ label: `상황 · ${scenario.title}`, question: "중재를 시작하기 전에 상황을 살펴보세요.",
+      foot: '<button id="startMediation" class="primary">AI 중재 시작</button>' });
+    $("stage").querySelector(".q").insertAdjacentHTML("afterend", `<div class="bg">${esc(scenario.background || scenario.summary)}</div>`);
+    const btn = $("startMediation");
+    btn.style.cssText = "font-size:16px;padding:12px 26px;text-decoration:none;color:#fff;margin-top:8px";
+    btn.onclick = () => resolve();
+  });
+}
+function showAnalysis() {
+  renderStage({ label: "AI 분석", question: `${scenario.analysis}…`,
+    hint: "AI가 A와 B의 입장을 먼저 살펴보고 있습니다." });
+}
+function renderSecBar() {
+  const sec = presets.filter((p) => p.outcome === "security");
+  $("secbar").innerHTML = sec.length ? `<span>보안 테스트</span>${sec.map((p) => `<button data-id="${esc(p.id)}" title="${esc(p.input_text)}">${esc(p.label)}</button>`).join("")}` : "";
+  $("secbar").querySelectorAll("button").forEach((b) => b.onclick = () => {
+    const p = presets.find((x) => x.id === b.dataset.id);
+    if (p && !busy) stream("/api/turn", { preset_id: p.id }, p.input_text, p.speaker);
+  });
+}
+async function startOpening() {
+  showAnalysis();
+  return stream("/api/turn", { opening: true }, scenario.analysis, "AI");
+}
+function showStarters() {
+  renderStage({
+    label: scenario ? `시나리오 · ${scenario.title}` : "시작하기",
+    question: "A와 B 중 한 사람이 되어 첫마디를 골라 보세요.",
+    hint: "버튼을 누르면 그 사람이 버튼에 적힌 말을 AI에게 보냅니다.\n아래 입력창에서 A나 B를 고르고 직접 써도 됩니다.",
+    options: presets.map((p) => ({ row: p.outcome, sp: p.speaker, label: p.label, text: p.input_text, preset: p.id })),
+  });
+}
+function showEntry() {
+  $("entry").hidden = false;
+  $("entry").innerHTML = `<div class="in">
+    <div class="eb">Handback Agent 시연</div>
+    <h2>어떤 갈등을 중재해 볼까요?</h2>
+    <p class="lead">AI가 두 사람의 갈등을 중재합니다.</p>
+    <p class="key">AI가 <span class="kc">어디까지 스스로 진행</span>하고,<br><span class="kh">언제 결정을 사람에게 넘기는지</span> 확인해 보세요.</p>
+    <div class="cards">${scenarios.map((s, i) => {
+      const first = s.positions[0] || {};
+      return `<button class="scard" data-id="${s.id}"><span class="no">시나리오 ${i + 1}</span><h3>${esc(s.title)}</h3><p>${esc(s.summary)}</p>
+        <span class="vs"><span class="a"><b>A</b>${esc(s.roles.A)} ${esc(first.A || "")}</span><span class="x">vs</span><span class="b"><b>B</b>${esc(s.roles.B)} ${esc(first.B || "")}</span></span>
+        <span class="ex">볼 수 있는 장면: 계속 진행 · 사람의 결정 · 보안 차단</span></button>`;
+    }).join("")}</div></div>`;
+  $("entry").querySelectorAll(".scard").forEach((c) => c.onclick = () => pickScenario(c.dataset.id));
+}
+async function pickScenario(id) {
+  scenario = scenarios.find((s) => s.id === id);
+  presets = scenario.presets;
+  renderRoles(scenario.roles);
+  renderSecBar();
+  $("scsum").textContent = scenario.summary.replace(/\n/g, " ");
+  await resetSession();
+  $("entry").hidden = true;
+  const firstTour = (() => { try { return localStorage.getItem("handbackTourSeen") !== "1"; } catch (e) { return false; } })();
+  if (firstTour) {
+    showExample();
+    await tourRun();       // 가이드가 끝나고 사라진 뒤에 실제 진행을 시작한다
+  }
+  await showBackground();  // 상황 설명을 보고 "AI 중재 시작"을 누르면 AI가 분석을 시작한다
+  await startOpening();
+  $("scn").innerHTML = `<b>${esc(scenario.title)}</b><button id="scnChange">시나리오 바꾸기</button>`;
+  $("scnChange").onclick = () => { if (!busy) showEntry(); };
+}
+// 사람 결정·보안 예시: 시연 중 언제든 끼워 넣는 말
+const injectOptions = () => presets.filter((p) => p.outcome === "handback")
+  .map((p) => ({ sp: p.speaker, label: p.label, text: p.input_text, preset: p.id }));
+const PRESET_LINK = "";
+
+let dualPicks = null, pendingLines = null;
+function dualCheck(auto = false) {
+  if (!dualPicks) return;
+  const sides = ["A", "B"];
+  const textOf = (sp) => {
+    const o = dualPicks[sp]; if (!o) return "";
+    if (!o.needs_input) return o.text;
+    const v = $("stage").querySelector(`.din[data-sp="${sp}"]`).value.trim();
+    return v && v !== o.text.trim() ? v : "";   // 미리 채운 앞부분 그대로가 아니면 보낼 수 있다
+  };
+  const ready = sides.every((sp) => textOf(sp));
+  const needsTyping = sides.some((sp) => dualPicks[sp]?.needs_input);
+  const msg = $("dualMsg"), btn = $("dualSend");
+  if (msg) msg.textContent = ready ? "" : sides.every((sp) => dualPicks[sp]) ? "입력칸을 채우면 보낼 수 있습니다." : `${sides.filter((sp) => !dualPicks[sp]).join("·")}의 답을 기다리고 있습니다.`;
+  if (btn) btn.hidden = !(ready && needsTyping);
+  if (ready && !needsTyping && auto) setTimeout(() => { if (dualPicks && sides.every((sp) => textOf(sp))) dualSend(); }, 350);
+  return ready ? { A: textOf("A"), B: textOf("B") } : null;
+}
+function dualSend() {
+  const t = dualCheck(); if (!t || busy) return;
+  if (dualPicks.A?.confirm && dualPicks.B?.confirm && dualPicks.A.confirm === "agree" && dualPicks.B.confirm === "agree") {
+    dualPicks = null;
+    showFinish({ who: "BOTH", lines: [{ who: "A", text: t.A }, { who: "B", text: t.B }] });
+    return;
+  }
+  dualPicks = null;
+  const combined = `A: ${t.A} / B: ${t.B}`;
+  pendingLines = [{ who: "A", text: t.A }, { who: "B", text: t.B }];
+  stream("/api/turn", { input_text: combined, speaker: "A·B" }, combined, "BOTH");
+}
+function pick(o, el) {
+  if (!o || busy || o.example) return;
+  if (dualPicks && (o.sp === "A" || o.sp === "B") && !o.preset && !o.decision && !o.free) {
+    dualPicks[o.sp] = o;
+    const grp = el?.closest(".grp");
+    grp?.querySelectorAll(".ob").forEach((b) => b.classList.toggle("sel", b === el));
+    const din = grp?.querySelector(".din");
+    if (din) { din.hidden = !o.needs_input; if (o.needs_input) { din.value = o.text + " "; din.focus(); } }
+    dualCheck(true);
+    return;
+  }
+  if (o.free) { focusInput(o.sp); return; }
+  if (o.decision) { decide(o.text); return; }
+  if (o.preset) { setSpeaker(o.sp); stream("/api/turn", { preset_id: o.preset }, o.text, o.sp); return; }
+  if (o.needs_input) { setSpeaker(o.sp); $("input").value = o.text + " "; focusInput(o.sp); return; }
+  setSpeaker(o.sp);
+  stream("/api/turn", { input_text: o.text, speaker: o.sp }, o.text, o.sp);
+}
+function focusInput(sp) {
+  if (sp === "A" || sp === "B") setSpeaker(sp);
+  const el = $("input"); el.focus(); el.setSelectionRange(el.value.length, el.value.length);
+}
+
+/* ---------- 대화 기록 ---------- */
+function addRow(html) {
+  $("intro")?.remove();
+  const wrap = document.createElement("div");
+  wrap.innerHTML = html.trim();
+  const el = wrap.firstElementChild;
+  $("chat").appendChild(el);
+  $("chat").scrollTop = $("chat").scrollHeight;
+  return el;
+}
+function traceBox() {
+  const sumItem = (k, label) => `<li data-k="${k}"><span class="ic">·</span><span class="lb">${label}</span><span class="v">대기</span></li>`;
+  const tr = (k, label) => `<div class="tr" data-k="${k}"><div class="tk"><span>${label}</span><span class="t"></span></div><div class="tv">대기</div></div>`;
+  return `<aside class="trace"><div class="th">AI 판단 요약 <span class="total"></span></div>
+    <ol class="sum">${sumItem("security_gate", "보안")}${sumItem("csm", "판단")}${sumItem("finish", "정리")}${sumItem("position_tracker", "입장")}</ol>
+    <div class="quote" hidden></div>
+    <details><summary>원문 자세히 (English)</summary><div lang="en">
+      ${tr("input", "모델에 들어간 입력")}${tr("security_gate", "Security Gate")}${tr("csm", "Handback CSM v0.4.1")}${tr("finish", "화면 문장")}
+    </div></details></aside>`;
+}
+function sumSet(k, text, cls, icon) {
+  const li = row?.querySelector(`.sum li[data-k="${k}"]`); if (!li) return;
+  li.querySelector(".v").className = `v ${cls}`; li.querySelector(".v").textContent = text; li.querySelector(".ic").textContent = icon;
+}
+function traceSet(k, html, time = "") {
+  const el = row?.querySelector(`.tr[data-k="${k}"]`); if (!el) return;
+  el.querySelector(".tv").innerHTML = html; el.querySelector(".t").textContent = time;
+}
+function traceStage(e) {
+  const key = e.stage === "continue_view" || e.stage === "handback_brief" ? "finish" : e.stage;
+  if (e.state === "running") return sumSet(key, "진행 중…", "run", "◌");
+  turnSeconds += e.seconds || 0;
+  const total = row?.querySelector(".total"); if (total) total.textContent = `${turnSeconds.toFixed(1)}초`;
+  const time = e.seconds === 0 ? "saved" : `${e.seconds}s`;
+  if (key === "security_gate") {
+    const pass = e.status === "PASS";
+    sumSet(key, pass ? "문제없음" : `실행 안 함 · ${SEC_SHORT[e.reason] || ""}`, pass ? "ok" : "block", pass ? "✓" : "■");
+    traceSet(key, `<span class="tag ${pass ? "ok" : "block"}">${esc(e.status)}</span>${esc(e.reason)} · ${esc(e.action)}${e.basis ? `<span class="en"><b>basis</b>${esc(e.basis)}</span>` : ""}`, time);
+    if (!pass) { sumSet("csm", "하지 않음", "", "–"); sumSet("finish", "고정 안내 문구", "", "–"); sumSet("position_tracker", "기록 안 함", "", "–");
+      traceSet("csm", "호출 안 함 (보안 차단)"); traceSet("finish", "서버 고정 문구"); }
+  } else if (key === "csm") {
+    const cont = e.status === "CONTINUE";
+    sumSet(key, cont ? `AI가 계속 진행 · ${OK_TEXT[e.reason] || ""}` : `사람에게 넘김 · ${HB_SHORT[e.reason] || ""}`, cont ? "cont" : "hb", cont ? "→" : "↩");
+    const q = row?.querySelector(".quote");
+    if (q && e.candidate_action) { const a = e.candidate_action; q.innerHTML = `<b>모델 원문</b><span lang="en">“${esc(a.length > 120 ? a.slice(0, 118) + "…" : a)}”</span>`; q.hidden = false; }
+    traceSet(key, `<span class="tag ${cont ? "ok" : "hb"}">${esc(e.status)}</span>${esc(e.reason)}${e.failed_gate ? ` · gate: ${esc(e.failed_gate)}` : ""}<span class="en"><b>action</b>${esc(e.candidate_action)}</span><span class="en"><b>basis</b>${esc(e.basis)}</span>`, time);
+  } else if (key === "position_tracker") {
+    sumSet(key, e.failed ? "실패 · 표 유지" : e.changed ? `${e.changed}칸 바뀜` : "변화 없음", "ok", e.failed ? "!" : "✓");
+  } else {
+    sumSet(key, e.stage === "handback_brief" ? "결정 요청 작성" : "다음 질문 작성", "ok", "✓");
+    traceSet(key, e.stage === "handback_brief" ? "Handback Brief v0.1" : "Continue View v0.2 (판정은 바꾸지 않음)", time);
+  }
+}
+function card(o) {
+  if (o.status === "CONTINUE") {
+    const v = o.continue_view || {};
+    return `<div class="card"><div class="kind">계속 진행</div><div class="t">${esc(v.action || o.candidate_action)}</div><div class="s">${esc(v.basis || "")}</div></div>`;
+  }
+  if (o.status === "HANDBACK") {
+    return `<div class="card HANDBACK"><div class="kind">사람의 결정이 필요합니다 · ${esc(HB_SHORT[o.primary_reason] || "")}</div>
+      <div class="t">${esc(o.human_decision_request)}</div>
+      <div class="s">AI가 하지 않는 일: ${esc(o.context_brief?.blocked_action)} · 결정 후: ${esc(o.resume_condition)} · 지금 할 수 있는 일: ${esc(o.safe_alternative)}</div></div>`;
+  }
+  return `<div class="card SECURITY_BLOCK"><div class="kind">보안상 실행하지 않음</div><div class="t">${esc(SEC_TEXT[o.security.reason] || "")}</div><div class="s">${esc(o.safe_alternative)}</div></div>`;
+}
+
+/* ---------- 결과 → 상태 ---------- */
+let heldStage = null, agreedSummary = "";
+function showHeld() {
+  if (!heldStage) return;
+  renderStage(heldStage);
+  lastQuestion = { args: stageArgs, pending: null };
+  heldStage = null;
+}
+// 입장 기록이 끝난 뒤: 모든 쟁점이 합의됐으면 "합의안 확인"을, 아니면 AI의 다음 질문을 보여 준다
+function afterPositions(e) {
+  const pr = e.progress;
+  if (pr && pr.total && pr.agreed >= pr.total && !pendingHandback) {
+    // 합의한 값: AI 제안이 있으면 그 값, 없으면 A의 값에서 "수락" 같은 반응 말을 뺀 것
+    const agreedValue = (p) => (p.proposal || String(p.A || p.B || "").split("(")[0].replace(/\s*(수락|수용|동의)\s*$/, "")).trim();
+    agreedSummary = (e.positions || []).map((p) => `· ${p.issue}: ${agreedValue(p)}`).join("\n");
+    const said = heldStage?.said ? { ...heldStage.said, ai: "모든 쟁점에서 두 분의 입장이 같아졌어요. 합의안을 확인해 주세요." } : null;
+    heldStage = null;
+    setNow("CONTINUE", "합의안 확인");
+    const opt = (sp) => [
+      { sp, label: "동의", text: "합의안에 동의합니다.", confirm: "agree" },
+      { sp, label: "다시 논의", text: "합의안을 다시 논의하고 싶어요.", confirm: "reopen" },
+    ];
+    renderStage({ kind: "CONTINUE", label: "합의안 확인", question: "정리한 합의안에 두 분 모두 동의하시겠습니까?",
+      hint: agreedSummary, said, options: [...opt("A"), ...opt("B")], foot: "AI가 권하는 선택은 없습니다" });
+    lastQuestion = { args: stageArgs, pending: null };
+    return;
+  }
+  showHeld();
+}
+function showFinish(said) {
+  setNow("CONTINUE", "합의 완료");
+  renderStage({
+    kind: "CONTINUE", label: "합의 완료", question: "두 사람이 모든 쟁점에 합의했습니다.",
+    hint: agreedSummary, said: { ...said, ai: "두 분 모두 합의안에 동의했어요. 중재를 마칩니다." },
+    foot: "서명이나 문서 작성은 A와 B가 직접 합니다. AI는 여기서 중재를 마칩니다.",
+  });
+  lastQuestion = null;
+}
+function showResult(e) {
+  const o = e.output;
+  row.querySelector(".slot").innerHTML = card(o);
+  $("chat").scrollTop = $("chat").scrollHeight;
+  const aiLine = o.status === "CONTINUE" ? (o.continue_view?.action || "")
+    : o.status === "HANDBACK" ? "이 결정은 AI가 대신 정할 수 없어요. A와 B가 정해 주세요."
+    : "이 요청은 실행하지 않았어요.";
+  const said = exchange ? { ...exchange, ai: aiLine } : null;
+  pendingHandback = null;
+  if (o.status === "CONTINUE") {
+    const v = o.continue_view || {};
+    setNow("CONTINUE", "중재 진행 중");
+    const opts = (v.reply_options || []).map((r) => ({ sp: r.speaker, label: r.label, text: r.text, needs_input: r.needs_input }));
+    const who = [...new Set(opts.map((x) => x.sp))];
+    // 입장 기록이 끝난 뒤에 보여 준다: 모든 쟁점이 합의됐으면 AI의 다음 질문(서명 등)은 띄우지 않는다
+    heldStage = {
+      kind: "CONTINUE", label: who.length === 1 ? `${who[0]}에게 묻습니다` : "A와 B에게 묻습니다",
+      question: v.next_prompt || "이어서 말해 주세요.",
+      options: opts, said,
+      foot: "AI가 권하는 선택은 없습니다",
+      extra: injectOptions(),
+    };
+    const w = $("stage").querySelector(".wait"); if (w) w.textContent = "입장 기록 중…";
+  } else if (o.status === "HANDBACK") {
+    pendingHandback = e.turn_id;
+    setNow("HANDBACK", "사람의 결정 대기");
+    renderStage({
+      kind: "HANDBACK", label: "사람의 결정이 필요합니다",
+      question: o.human_decision_request, hint: HB_TEXT[o.primary_reason] || "", said,
+      options: [...(o.decision_options || []).map((x) => ({ sp: "AB", label: x, text: x, decision: true })), ],
+      foot: "A와 B가 결정하면 AI는 그 결정을 바탕으로 중재를 다시 시작합니다 · AI가 권하는 선택은 없습니다",
+    });
+    lastQuestion = { args: stageArgs, pending: e.turn_id };
+  } else {
+    setNow("SECURITY_BLOCK", "보안 차단");
+    renderStage({
+      kind: "SECURITY_BLOCK", label: "보안상 실행하지 않았습니다",
+      question: SEC_TEXT[o.security.reason] || "이 요청은 실행하지 않았습니다.", said,
+      hint: `${o.safe_alternative}\n누가 승인하더라도 AI는 이 요청을 실행하지 않습니다.`,
+      extra: injectOptions(),
+      foot: lastQuestion ? '<button id="backQ">이전 질문으로 돌아가기</button>' : "A나 B가 입력창에 다른 말을 적어 대화를 이어 가세요.",
+    });
+  }
+  setWhoMode();
+  renderMeta(e.state, e.history);
+}
+
+/* ---------- 서버 스트림 ---------- */
+async function stream(url, body, said, who, isDecision = false) {
+  if (busy) return false;
+  busy = true; $("send").disabled = true; stageBusy(true);
+  // 직전 질문으로 돌아갈 때 상단 단계판도 그 질문 때 상태로 되돌리기 위해 저장해 둔다
+  if (lastQuestion && !lastQuestion.steps) lastQuestion.steps = structuredClone(steps);
+  $("secbar").querySelectorAll("button").forEach((b) => b.disabled = true);
+  turnSeconds = 0;
+  exchange = { who: isDecision ? "AB" : who, text: said, ai: null, lines: pendingLines };
+  pendingLines = null;
+  if (who !== "AI") {
+    $("stage").querySelector(".said")?.remove();
+    $("stage").insertAdjacentHTML("afterbegin", saidHtml(exchange));
+  }
+  const b = isDecision ? ["AB", "A·B 결정"] : who === "AI" ? ["AI", "AI 분석"] : who === "BOTH" ? ["AB", "A·B의 답"] : [who, `${who}의 말`];
+  lastSaid = `${isDecision ? "A·B 결정" : who === "AI" ? "AI 분석" : who}: ${said}`;
+  row = addRow(`<div class="turn"><div class="left"><div class="msg ${b[0]}"><span class="tag">${b[1]}</span>${esc(said)}</div><div class="slot"><div class="card pending">판단 중…</div></div></div>${traceBox()}</div>`);
+  resetSteps();
+  ticker = setInterval(renderPipe, 100);
+  let ok = false;
+  try {
+    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, session: sess }) });
+    if (!res.ok || !res.body) { const d = await res.json().catch(() => ({})); throw new Error(d.error || "요청에 실패했습니다."); }
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+        if (!line) continue;
+        const e = JSON.parse(line);
+        keepSession(e);
+        if (e.type === "accepted") traceSet("input", esc(e.case_text));
+        else if (e.type === "stage") { onStage(e); traceStage(e); }
+        else if (e.type === "result") { showResult(e); ok = true; stageBusy(true); }
+        else if (e.type === "positions") { renderPositions(e.positions, e.changed, e.progress); afterPositions(e); }
+        else if (e.type === "error") throw new Error(e.error);
+      }
+    }
+    if (!ok) throw new Error("응답이 중간에 끊겼습니다.");
+  } catch (err) {
+    row.querySelector(".slot").innerHTML = `<div class="err">${esc(err.message)}</div>`;
+    setNow("", "오류");
+  } finally {
+    clearInterval(ticker); renderPipe();
+    showHeld();
+    busy = false; $("send").disabled = false; stageBusy(false);
+    $("secbar").querySelectorAll("button").forEach((b) => b.disabled = false);
+  }
+  return ok;
+}
+function decide(choice) {
+  if (!pendingHandback) return;
+  stream("/api/decide", { turn_id: pendingHandback, choice }, choice, "AB", true);
+}
+
+/* ---------- 입력 ---------- */
+function setSpeaker(s) {
+  speaker = s;
+  document.querySelectorAll("#who button").forEach((b) => b.className = `${b.dataset.s}${b.dataset.s === s ? " on" : ""}`);
+  setWhoMode();
+}
+function setWhoMode() {
+  $("who").classList.toggle("decide", !!pendingHandback);
+  $("input").placeholder = pendingHandback ? "결정 내용을 직접 입력" : `${speaker}의 입장에서 직접 입력`;
+}
+const MAX_INPUT = 2000;
+function checkLimit() {
+  const n = $("input").value.trim().length, over = n > MAX_INPUT;
+  $("limit").hidden = !over;
+  if (over) $("limit").textContent = `한 번에 ${MAX_INPUT.toLocaleString()}자까지 보낼 수 있습니다. 지금 ${n.toLocaleString()}자입니다.`;
+  return !over;
+}
+function sendText() {
+  const t = $("input").value.trim();
+  if (!t || busy || !checkLimit()) return;
+  $("input").value = "";
+  if (pendingHandback) decide(t);
+  else stream("/api/turn", { input_text: t, speaker }, t, speaker);
+}
+$("send").onclick = sendText;
+$("logToggle").onclick = () => {
+  const open = $("chat").classList.toggle("open");
+  $("logToggle").textContent = open ? "대화 기록 접기" : "대화 기록 펼치기";
+  setTimeout(() => { $("chat").scrollTop = $("chat").scrollHeight; }, 320);
+};
+$("input").addEventListener("input", checkLimit);
+$("input").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendText(); } });
+document.querySelectorAll("#who button").forEach((b) => b.onclick = () => setSpeaker(b.dataset.s));
+async function resetSession() {
+  const s = await (await fetch("/api/reset", { method: "POST", body: JSON.stringify({ scenario: scenario?.id, session: sess }) })).json();
+  keepSession(s);
+  $("chat").innerHTML = `<div class="intro" id="intro">아직 대화가 없습니다.</div>`;
+  exchange = null;
+  pendingHandback = null; lastQuestion = null; prevMarks = {}; axes = {}; setNow("", "대기 중"); resetSteps(); setSpeaker("A");
+  renderPositions(s.positions, [], s.progress); renderMeta(s.state, s.history); showStarters();
+}
+$("reset").onclick = async () => { if (busy) return; await resetSession(); if (scenario) await startOpening(); };
+fetch("/api/session").then((r) => r.json()).then((s) => {
+  keepSession(s);
+  scenarios = s.scenarios || [];
+  outcomes = s.outcomes || {};
+  renderPositions(s.positions, [], s.progress); renderMeta(s.state, s.history);
+  showEntry();
+});
+resetSteps();
+
+/* ---------- 가이드 투어 (처음 접속 시 1회, 상단 "가이드"로 다시 보기) ---------- */
+const TOUR = [
+  { el: () => document.querySelector(".board"), title: "A와 B의 입장 차이",
+    body: "이 영역에서 A와 B의 입장이 어디서 갈리는지 볼 수 있습니다.\nAI의 제안은 참고용이며, A와 B가 받아들여야 효력이 생깁니다.\n두 사람의 입장 차이가 줄어든 만큼 위 막대가 차오릅니다." },
+  { el: () => document.querySelector(".groups") || $("stage"), title: "질문에 버튼으로 답하기",
+    body: "A와 B는 가운데 질문에 각자 버튼으로 답합니다.\nA와 B가 답하면 AI는 그 답을 바탕으로 중재를 이어 갑니다." },
+  { el: () => document.querySelector(".composer"), title: "직접 말하기",
+    body: "버튼에 없는 말을 하고 싶으면 A나 B를 고른 뒤 직접 입력하세요.\nAI는 모든 말을 먼저 보안 검사하고, 위험한 요청은 실행하지 않습니다." },
+];
+let tourStep = -1, tourResolve = null;
+function tourRun() {
+  return new Promise((resolve) => { tourResolve = resolve; setTimeout(() => tourGo(0), 250); });
+}
+function tourPlace() {
+  const s = TOUR[tourStep], target = s.el();
+  if (!target) return;
+  target.scrollIntoView({ block: "nearest" });
+  const b = target.getBoundingClientRect(), pad = 8;
+  const spot = document.querySelector(".tour .spot"), tip = document.querySelector(".tour .tip");
+  Object.assign(spot.style, { left: `${b.left - pad}px`, top: `${b.top - pad}px`, width: `${b.width + pad * 2}px`, height: `${b.height + pad * 2}px` });
+  tip.innerHTML = `<div class="n">${tourStep + 1} / ${TOUR.length}</div><h4>${esc(s.title)}</h4><p>${esc(s.body)}</p>
+    <div class="act"><button class="skip">건너뛰기</button><div class="dots">${TOUR.map((_, i) => `<i class="${i === tourStep ? "on" : ""}"></i>`).join("")}</div>
+    <button class="primary next">${tourStep === TOUR.length - 1 ? "시작하기" : "다음"}</button></div>`;
+  tip.querySelector(".skip").onclick = tourEnd;
+  tip.querySelector(".next").onclick = () => tourGo(tourStep + 1);
+  const below = b.bottom + 16 + tip.offsetHeight < innerHeight;
+  const above = b.top - tip.offsetHeight - 16 > 0;
+  const right = b.right + 24 + tip.offsetWidth < innerWidth;
+  if (!below && !above && right) {
+    // 세로로 긴 대상(왼쪽 상황판 등)은 위·아래에 자리가 없으므로 오른쪽 옆에 둔다
+    Object.assign(tip.style, { left: `${b.right + 24}px`, top: `${Math.max(16, Math.min(b.top + 40, innerHeight - tip.offsetHeight - 16))}px` });
+    return;
+  }
+  const left = Math.min(Math.max(16, b.left + b.width / 2 - tip.offsetWidth / 2), innerWidth - tip.offsetWidth - 16);
+  Object.assign(tip.style, { left: `${left}px`, top: `${below ? b.bottom + 16 : Math.max(16, b.top - tip.offsetHeight - 16)}px` });
+}
+function tourGo(i) {
+  if (i >= TOUR.length) return tourEnd();
+  tourStep = i;
+  if (!document.querySelector(".tour")) {
+    document.body.insertAdjacentHTML("beforeend", `<div class="tour" role="dialog" aria-label="화면 안내"><div class="shade"></div><div class="spot"></div><div class="tip"></div></div>`);
+    document.querySelector(".tour .shade").onclick = () => tourGo(tourStep + 1);
+  }
+  tourPlace();
+  document.querySelector(".tour .next")?.focus();
+}
+function tourEnd() {
+  const el = document.querySelector(".tour");
+  tourStep = -1;
+  try { localStorage.setItem("handbackTourSeen", "1"); } catch (e) {}
+  const done = () => { el?.remove(); if (tourResolve) { const r = tourResolve; tourResolve = null; r(); } };
+  if (el) { el.classList.add("out"); setTimeout(done, 460); } else done();
+}
+addEventListener("resize", () => { if (tourStep >= 0) tourPlace(); });
+addEventListener("keydown", (e) => { if (tourStep >= 0 && e.key === "Escape") tourEnd(); });
+$("guideBtn").onclick = () => tourGo(0);
+// 처음 투어는 시나리오를 고른 뒤 pickScenario에서 시작한다
+</script>
+</body>
+</html>
