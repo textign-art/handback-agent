@@ -89,7 +89,7 @@ tests/            contract and reducer tests
 ## Limitations
 
 - This is a demo: one conversation per browser, no accounts, no persistence beyond the session.
-- The authority check was evaluated on Korean inputs; the English version has not been benchmarked separately.
+- The Security Gate and the authority check were evaluated on fixed single-line test sets in Korean and English, with the same decisions in both languages. Multi-turn conversations (with the state summary) have not been benchmarked.
 - Model outputs can vary between runs even at temperature 0.
 
 ## License
